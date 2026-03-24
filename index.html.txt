@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>3D Calendar Pro</title>
+<style>
+  body { margin: 0; overflow: hidden; background: #0e0e0e; }
+  #ui {
+    position: absolute;
+    top: 20px; left: 20px;
+    background: rgba(255,255,255,0.95);
+    padding: 12px;
+    border-radius: 12px;
+  }
+</style>
+</head>
+<body>
+
+<div id="ui">
+  <input type="file" id="upload" multiple><br><br>
+  <span>Drag ngang để lật trang</span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.158/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.158/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+let scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0e0e0e);
+
+let camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 100);
+camera.position.set(0, 2, 5);
+
+let renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+// Controls
+let controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+// Lights (realistic hơn)
+let keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
+keyLight.position.set(5, 10, 5);
+keyLight.castShadow = true;
+scene.add(keyLight);
+
+let fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+fillLight.position.set(-5, 5, -5);
+scene.add(fillLight);
+
+scene.add(new THREE.AmbientLight(0x404040));
+
+// Base (giống mockup hơn)
+let baseGeo = new THREE.ConeGeometry(2.5, 2, 4);
+let baseMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
+let base = new THREE.Mesh(baseGeo, baseMat);
+base.rotation.y = Math.PI / 4;
+base.position.y = -1.2;
+base.receiveShadow = true;
+scene.add(base);
+
+// Pages
+let pages = [];
+let loader = new THREE.TextureLoader();
+
+for (let i = 0; i < 12; i++) {
+
+  let geo = new THREE.PlaneGeometry(3.2, 2);
+
+  let mat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    side: THREE.DoubleSide
+  });
+
+  let page = new THREE.Mesh(geo, mat);
+  page.castShadow = true;
+
+  let pivot = new THREE.Group();
+  pivot.position.set(0, 1, 0);
+
+  page.position.y = -1;
+
+  pivot.add(page);
+  scene.add(pivot);
+
+  pages.push(pivot);
+}
+
+// Upload texture
+document.getElementById("upload").addEventListener("change", (e) => {
+  let files = e.target.files;
+
+  files.forEach((file, i) => {
+    let url = URL.createObjectURL(file);
+
+    loader.load(url, (tex) => {
+      pages[i].children[0].material.map = tex;
+      pages[i].children[0].material.needsUpdate = true;
+    });
+  });
+});
+
+// Drag flip
+let isDragging = false;
+let startX = 0;
+let currentPage = 0;
+
+window.addEventListener("mousedown", (e) => {
+  isDragging = true;
+  startX = e.clientX;
+});
+
+window.addEventListener("mouseup", () => {
+  isDragging = false;
+});
+
+window.addEventListener("mousemove", (e) => {
+  if (!isDragging) return;
+  if (currentPage >= 12) return;
+
+  let delta = (e.clientX - startX) * 0.01;
+
+  delta = Math.max(Math.min(delta, 0), -Math.PI);
+
+  pages[currentPage].rotation.x = delta;
+
+  if (delta < -2.5) {
+    currentPage++;
+    isDragging = false;
+  }
+});
+
+// Render loop
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+// Resize
+window.addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+
+</body>
+</html>
